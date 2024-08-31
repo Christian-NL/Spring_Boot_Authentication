@@ -40,6 +40,12 @@ public class JwtService {
         return buildToken(extraClaims, userDetails, jwtExpiration);
     }
 
+    public String generateRefreshToken(UserDetails userDetails) {
+        long refreshTokenExpiration = jwtExpiration * 24; //durée de vie du refresh token 24 fois celle du access token
+        return buildToken(new HashMap<>(), userDetails, refreshTokenExpiration);
+    }
+
+
     public long getExpirationTime(){
         return jwtExpiration;
     }
@@ -64,7 +70,7 @@ public class JwtService {
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 
-    private boolean isTokenExpired(String token){
+    public boolean isTokenExpired(String token){
         return extractExpiration(token).before(new Date());
     }
 
@@ -84,5 +90,19 @@ public class JwtService {
     private Key getSignInKey(){
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public boolean isValidFormat(String token) {
+        if (token.isBlank()) {
+            return true;
+        }
+
+        try {
+            // Tentative de décoder le token pour vérifier qu'il a bien été signé avec la clé correcte
+            Jwts.parserBuilder().setSigningKey(getSignInKey()).build().parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

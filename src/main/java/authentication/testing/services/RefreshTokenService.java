@@ -16,16 +16,19 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
+    private final JwtService jwtService;
 
     public RefreshTokenService(
             RefreshTokenRepository refreshTokenRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            JwtService jwtService
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.userRepository = userRepository;
+        this.jwtService = jwtService;
     }
 
-    public RefreshToken createRefreshToken(String email){
+    /*public RefreshToken createRefreshToken(String email){
         RefreshToken refreshToken;
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
@@ -44,7 +47,30 @@ public class RefreshTokenService {
         }
 
         return refreshTokenRepository.save(refreshToken);
+    }*/
+
+    public RefreshToken createRefreshToken(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+
+        Optional<RefreshToken> existingTokenOptional = refreshTokenRepository.findByUser(user);
+        RefreshToken refreshToken;
+
+        if (existingTokenOptional.isPresent()) {
+            refreshToken = existingTokenOptional.get();
+            refreshToken.setToken(jwtService.generateRefreshToken(user));
+            refreshToken.setExpiryDate(Instant.now().plus(1, ChronoUnit.HOURS));
+        } else {
+            refreshToken = RefreshToken.builder()
+                    .user(user)
+                    .token(jwtService.generateRefreshToken(user))
+                    .expiryDate(Instant.now().plus(1, ChronoUnit.HOURS))
+                    .build();
+        }
+
+        return refreshTokenRepository.save(refreshToken);
     }
+
 
     public Optional<RefreshToken> findByToken(String token){
         return refreshTokenRepository.findByToken(token);
